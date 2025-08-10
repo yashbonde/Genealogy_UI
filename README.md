@@ -12,7 +12,7 @@ and go to [http://[::]:8090/builder.html](http://[::]:8090/builder.html).
 
 ### Proof it works?
 
-See this genealogy ([data.json](data.json)) of given in [Mani's Puranic Encyclopaedia](https://archive.org/details/puranicencyclopa00maniuoft/page/900/mode/2up?view=theater) containing 1270+ nodes from Mahavisnu to Kaliyuga.
+See this genealogy ([data.json](data.json)) given in [Mani's Puranic Encyclopaedia](https://archive.org/details/puranicencyclopa00maniuoft/page/900/mode/2up?view=theater) containing 1270+ key figures from Mahavisnu to Kaliyuga.
 
 ## Key Features
 
