@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genealogy Tree Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .monospace {
+            font-family: 'Courier New', monospace;
+        }
+
+        .compact * {
+            padding: 0.125rem 0.25rem;
+        }
+
+        .tree-node {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .tree-node:hover {
+            background-color: #f3f4f6;
+        }
+
+        .selected-node {
+            background-color: #dbeafe !important;
+        }
+
+        .selected-marriage {
+            background-color: #fef3c7 !important;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-900 text-sm">
+    <div class="max-w-7xl mx-auto p-2">
+        <h1 class="text-lg font-bold mb-2">Genealogy Tree Builder</h1>
+
+        <div class="mb-2">
+            <!-- Tree Builder - Full Width -->
+            <div class="bg-white border rounded p-2">
+                <div class="flex justify-between items-center mb-1">
+                    <h2 class="font-semibold">Tree Structure</h2>
+                    <div id="metadata" class="monospace text-xs text-gray-600"></div>
+                </div>
+                <div id="treeView"
+                    class="space-y-1 h-[500px] overflow-y-auto overflow-x-auto whitespace-nowrap border-t pt-1"></div>
+
+                <div class="mt-2 pt-2 border-t">
+                    <div class="mb-1">
+                        <input type="text" id="nodeSearch" list="nodeList" placeholder="Search and select node..."
+                            class="border px-1 py-0.5 text-xs w-full">
+                        <datalist id="nodeList"></datalist>
+                    </div>
+
+                    <div class="mb-1">
+                        <input type="text" id="newNodeName" placeholder="Name for new node"
+                            class="border px-1 py-0.5 text-xs w-full">
+                    </div>
+
+                    <div class="flex gap-1 flex-wrap">
+                        <button onclick="executeAction('add-spouse')"
+                            class="bg-blue-500 text-white px-2 py-0.5 text-xs rounded">Add Spouse</button>
+                        <button onclick="executeAction('add-child')"
+                            class="bg-green-500 text-white px-2 py-0.5 text-xs rounded">Add Child</button>
+                        <button onclick="executeAction('delete')"
+                            class="bg-red-500 text-white px-2 py-0.5 text-xs rounded">Delete</button>
+                    </div>
+                    <div id="selectionInfo" class="text-xs text-gray-600 mt-1"></div>
+                </div>
+
+                <div class="mt-2 pt-2 border-t">
+                    <h3 class="font-semibold mb-1 text-xs">Attributes for Selected Node</h3>
+                    <div id="selectedNodeInfo" class="text-xs text-gray-600 mb-1">No node selected</div>
+                    <div id="attributesList" class="space-y-1 mb-2"></div>
+                    <div class="flex gap-1">
+                        <input type="text" id="attrKey" placeholder="Key" class="border px-1 py-0.5 text-xs flex-1">
+                        <input type="text" id="attrValue" placeholder="Value" class="border px-1 py-0.5 text-xs flex-1">
+                        <button onclick="addAttribute()"
+                            class="bg-green-500 text-white px-2 py-0.5 text-xs rounded">Add</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- JSON Output -->
+        <div class="mt-2 bg-white border rounded p-2">
+            <h2 class="font-semibold mb-1">JSON Output</h2>
+            <textarea id="jsonOutput" class="w-full h-48 border p-1 text-xs monospace" readonly></textarea>
+            <div class="mt-1 flex gap-1">
+                <button onclick="copyJSON()" class="bg-gray-500 text-white px-2 py-0.5 text-xs rounded">Copy
+                    JSON</button>
+                <button onclick="openLoadModal()" class="bg-blue-500 text-white px-2 py-0.5 text-xs rounded">Load from
+                    JSON</button>
+            </div>
+        </div>
+
+        <!-- Load JSON Modal -->
+        <div id="loadModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50"
+            style="display: none;">
+            <div class="bg-white rounded-lg p-4 w-11/12 max-w-2xl">
+                <h3 class="font-semibold mb-2">Load Tree from JSON</h3>
+                <textarea id="jsonInput" class="w-full h-64 border p-2 text-xs monospace"
+                    placeholder="Paste your JSON here..."></textarea>
+                <div class="mt-2 flex gap-2 justify-end">
+                    <button onclick="closeLoadModal()"
+                        class="bg-gray-500 text-white px-3 py-1 text-xs rounded">Cancel</button>
+                    <button onclick="loadFromJSON()"
+                        class="bg-green-500 text-white px-3 py-1 text-xs rounded">Load</button>
+                </div>
+                <div id="loadError" class="mt-2 text-red-500 text-xs"></div>
+            </div>
+        </div>
+
+        <!-- README Section -->
+        <div class="mt-2 bg-gray-100 border rounded p-2">
+            <h2 class="font-semibold mb-2">📖 How to Use This Genealogy Tree Builder</h2>
+            <div class="space-y-2 text-xs">
+                <div>
+                    <h3 class="font-semibold">Overview</h3>
+                    <p class="text-gray-700">This tool helps you build complex family trees with marriages, parent-child
+                        relationships, and custom attributes for each person. The full-width tree view supports deep
+                        nesting (100+ levels) with horizontal scrolling.</p>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold">Getting Started</h3>
+                    <ol class="list-decimal list-inside text-gray-700 space-y-0.5">
+                        <li>The tree starts with a root person (ID: 1)</li>
+                        <li>Click on any node in the tree or search for it in the search box</li>
+                        <li>Add a spouse to create a marriage relationship</li>
+                        <li>Click on the marriage (⚭ symbol) to select it</li>
+                        <li>With a marriage selected, add children - they'll be linked to both parents automatically
+                        </li>
+                        <li>Click the [+]/[-] symbols to expand/collapse branches and marriages</li>
+                    </ol>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold">Key Features</h3>
+                    <ul class="list-disc list-inside text-gray-700 space-y-0.5">
+                        <li><strong>Save & Load:</strong> Copy JSON to save your work, Load from JSON to restore
+                            previous trees</li>
+                        <li><strong>Deep Nesting Support:</strong> Horizontal scrolling for trees that go 100+ levels
+                            deep</li>
+                        <li><strong>Marriage-based Children:</strong> Select a marriage (⚭) and add children to link
+                            them to both parents</li>
+                        <li><strong>Collapsible Marriages:</strong> Click [+]/[-] on marriages to show/hide their
+                            children</li>
+                        <li><strong>Delete Marriages:</strong> Select a marriage and click Delete to remove it (children
+                            become direct children of parents)</li>
+                        <li><strong>Searchable Nodes:</strong> Type to search through all nodes by name or ID</li>
+                        <li><strong>Custom Attributes:</strong> Select any person and add unlimited key-value pairs</li>
+                        <li><strong>Cascading Delete:</strong> Deleting a person also removes all their descendants</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold">Working with Marriages</h3>
+                    <ul class="list-disc list-inside text-gray-700 space-y-0.5">
+                        <li>Marriages appear below each person with the ⚭ symbol</li>
+                        <li>Click on a marriage to select it (highlighted in yellow)</li>
+                        <li>With a marriage selected, adding a child links to both parents</li>
+                        <li>Each marriage has a unique ID for tracking children from different marriages</li>
+                        <li>Marriages can be collapsed to hide their children</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold">JSON Structure</h3>
+                    <div class="bg-white p-1 rounded border text-gray-700 monospace">
+                        <pre>{
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Person Name",
+      "attributes": {
+        "birth": "1950",
+        "occupation": "Engineer"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "M1",
+      "type": "marriage",
+      "person1": 1,
+      "person2": 2
+    },
+    {
+      "type": "parent-child",
+      "marriageId": "M1",
+      "parent": 1,
+      "child": 3
+    }
+  ]
+}</pre>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-semibold">Tips for Large Trees (1000+ nodes)</h3>
+                    <ul class="list-disc list-inside text-gray-700 space-y-0.5">
+                        <li>Use the search box to quickly find specific people</li>
+                        <li>Collapse branches and marriages you're not currently working on</li>
+                        <li>Build marriages first, then add children to specific marriages</li>
+                        <li>Copy the JSON regularly to save your work</li>
+                        <li>Use Load from JSON to continue working on a previously saved tree</li>
+                        <li>The tree view scrolls horizontally for deep nesting (100+ levels)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let nodes = [];
+        let relationships = [];
+        let nextId = 1;
+        let nextMarriageId = 1;
+        let selectedNodeId = null;
+        let selectedMarriageId = null;
+        let expandedNodes = new Set([1]);
+        let expandedMarriages = new Set();
+
+        // Initialize with root node
+        function init() {
+            nodes.push({
+                id: nextId++,
+                name: 'Root Person',
+                attributes: {}
+            });
+            updateUI();
+        }
+
+        function updateUI() {
+            updateTreeView();
+            updateSearchList();
+            updateJSON();
+            updateMetadata();
+            updateAttributesDisplay();
+            updateSelectionInfo();
+        }
+
+        function updateSelectionInfo() {
+            const info = document.getElementById('selectionInfo');
+            if (selectedMarriageId) {
+                const marriage = relationships.find(r => r.id === selectedMarriageId);
+                if (marriage) {
+                    const p1 = nodes.find(n => n.id === marriage.person1);
+                    const p2 = nodes.find(n => n.id === marriage.person2);
+                    info.textContent = `Selected Marriage: ${p1.name} ⚭ ${p2.name}`;
+                }
+            } else if (selectedNodeId) {
+                const node = nodes.find(n => n.id === selectedNodeId);
+                if (node) {
+                    info.textContent = `Selected Node: [${node.id}] ${node.name}`;
+                }
+            } else {
+                info.textContent = '';
+            }
+        }
+
+        function updateTreeView() {
+            const container = document.getElementById('treeView');
+            const rootNode = nodes.find(n => n.id === 1);
+            if (!rootNode) {
+                container.innerHTML = '<div class="text-gray-500">No nodes</div>';
+                return;
+            }
+
+            let html = '<div class="compact">';
+            html += renderNode(rootNode, 0, new Set());
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderNode(node, level, visited) {
+            if (visited.has(node.id)) return '';
+            visited.add(node.id);
+
+            // Check if node has children (either directly or through marriages)
+            const hasDirectChildren = relationships.some(r => r.type === 'parent-child' && r.parent === node.id && !r.marriageId);
+            const marriages = relationships.filter(r => r.type === 'marriage' && (r.person1 === node.id || r.person2 === node.id));
+            const hasMarriageChildren = marriages.some(m =>
+                relationships.some(r => r.type === 'parent-child' && r.marriageId === m.id)
+            );
+            const hasChildren = hasDirectChildren || hasMarriageChildren || marriages.length > 0;
+            const isExpanded = expandedNodes.has(node.id);
+
+            let html = `<div style="margin-left: ${level * 20}px" class="tree-node py-0.5 whitespace-nowrap ${selectedNodeId === node.id && !selectedMarriageId ? 'selected-node' : ''}" onclick="selectNode(${node.id}, event)">`;
+
+            // Add expand/collapse button if has children or marriages
+            if (hasChildren) {
+                html += `<span onclick="toggleNode(${node.id}, event)" class="cursor-pointer">[${isExpanded ? '-' : '+'}]</span> `;
+            } else {
+                html += `<span class="invisible">[+]</span> `;
+            }
+
+            html += `<span class="font-medium">[${node.id}] ${node.name}</span>`;
+            html += '</div>';
+
+            // Show marriages and children if expanded
+            if (isExpanded) {
+                marriages.forEach(m => {
+                    const spouseId = m.person1 === node.id ? m.person2 : m.person1;
+                    const spouse = nodes.find(n => n.id === spouseId);
+                    if (spouse) {
+                        const marriageChildren = relationships.filter(r =>
+                            r.type === 'parent-child' && r.marriageId === m.id && r.parent === node.id
+                        );
+
+                        const hasMarriageKids = marriageChildren.length > 0;
+                        const isMarriageExpanded = expandedMarriages.has(m.id);
+
+                        html += `<div style="margin-left: ${(level + 1) * 20}px" class="tree-node py-0.5 whitespace-nowrap ${selectedMarriageId === m.id ? 'selected-marriage' : ''}" onclick="selectMarriage('${m.id}', event)">`;
+
+                        // Add expand/collapse for marriage if it has children
+                        if (hasMarriageKids) {
+                            html += `<span onclick="toggleMarriage('${m.id}', event)" class="cursor-pointer">[${isMarriageExpanded ? '-' : '+'}]</span> `;
+                        } else {
+                            html += `<span class="invisible">[+]</span> `;
+                        }
+
+                        html += `<span class="text-purple-600">⚭ [${spouse.id}] ${spouse.name}</span>`;
+                        html += ` <span class="text-gray-400 text-xs">(Marriage ${m.id})</span>`;
+                        html += '</div>';
+
+                        // Show children from this marriage if expanded
+                        if (isMarriageExpanded && hasMarriageKids) {
+                            const childrenIds = new Set();
+                            marriageChildren.forEach(rel => {
+                                childrenIds.add(rel.child);
+                            });
+
+                            childrenIds.forEach(childId => {
+                                const child = nodes.find(n => n.id === childId);
+                                if (child && !visited.has(child.id)) {
+                                    html += renderNode(child, level + 2, visited);
+                                }
+                            });
+                        }
+                    }
+                });
+
+                // Show direct children (not from marriages)
+                const directChildren = relationships.filter(r =>
+                    r.type === 'parent-child' && r.parent === node.id && !r.marriageId
+                );
+                directChildren.forEach(rel => {
+                    const child = nodes.find(n => n.id === rel.child);
+                    if (child && !visited.has(child.id)) {
+                        html += renderNode(child, level + 1, visited);
+                    }
+                });
+            }
+
+            return html;
+        }
+
+        function toggleNode(nodeId, event) {
+            event.stopPropagation();
+            if (expandedNodes.has(nodeId)) {
+                expandedNodes.delete(nodeId);
+            } else {
+                expandedNodes.add(nodeId);
+            }
+            updateTreeView();
+        }
+
+        function toggleMarriage(marriageId, event) {
+            event.stopPropagation();
+            if (expandedMarriages.has(marriageId)) {
+                expandedMarriages.delete(marriageId);
+            } else {
+                expandedMarriages.add(marriageId);
+            }
+            updateTreeView();
+        }
+
+        function selectNode(nodeId, event) {
+            if (event) event.stopPropagation();
+            selectedNodeId = nodeId;
+            selectedMarriageId = null;
+            document.getElementById('nodeSearch').value = `[${nodeId}] ${nodes.find(n => n.id === nodeId).name}`;
+            updateUI();
+        }
+
+        function selectMarriage(marriageId, event) {
+            if (event) event.stopPropagation();
+            selectedMarriageId = marriageId;
+            selectedNodeId = null;
+
+            // Show marriage in search box
+            const marriage = relationships.find(r => r.id === marriageId);
+            if (marriage) {
+                const p1 = nodes.find(n => n.id === marriage.person1);
+                const p2 = nodes.find(n => n.id === marriage.person2);
+                document.getElementById('nodeSearch').value = `Marriage ${marriageId}: ${p1.name} ⚭ ${p2.name}`;
+            }
+
+            updateUI();
+        }
+
+        function updateAttributesDisplay() {
+            const infoDiv = document.getElementById('selectedNodeInfo');
+            const listDiv = document.getElementById('attributesList');
+
+            if (!selectedNodeId || selectedMarriageId) {
+                infoDiv.textContent = selectedMarriageId ? 'Marriage selected (select a person to edit attributes)' : 'No node selected';
+                listDiv.innerHTML = '';
+                return;
+            }
+
+            const node = nodes.find(n => n.id === selectedNodeId);
+            if (!node) return;
+
+            infoDiv.textContent = `Selected: [${node.id}] ${node.name}`;
+
+            let html = '';
+            Object.entries(node.attributes).forEach(([key, value]) => {
+                html += `
+                    <div class="flex gap-1 items-center">
+                        <span class="text-xs"><strong>${key}:</strong> ${value}</span>
+                    </div>
+                `;
+            });
+            listDiv.innerHTML = html;
+        }
+
+        function updateSearchList() {
+            const datalist = document.getElementById('nodeList');
+            datalist.innerHTML = '';
+
+            // Add nodes
+            nodes.forEach(node => {
+                const option = document.createElement('option');
+                option.value = `[${node.id}] ${node.name}`;
+                datalist.appendChild(option);
+            });
+
+            // Add marriages
+            relationships.filter(r => r.type === 'marriage').forEach(m => {
+                const p1 = nodes.find(n => n.id === m.person1);
+                const p2 = nodes.find(n => n.id === m.person2);
+                if (p1 && p2) {
+                    const option = document.createElement('option');
+                    option.value = `Marriage ${m.id}: ${p1.name} ⚭ ${p2.name}`;
+                    datalist.appendChild(option);
+                }
+            });
+        }
+
+        function updateJSON() {
+            const data = {
+                nodes: nodes,
+                relationships: relationships
+            };
+            document.getElementById('jsonOutput').value = JSON.stringify(data, null, 2);
+        }
+
+        function updateMetadata() {
+            const metadata = {
+                nodes: nodes.length,
+                marriages: relationships.filter(r => r.type === 'marriage').length,
+                relationships: relationships.length
+            };
+
+            let text = `Nodes: ${metadata.nodes} | Marriages: ${metadata.marriages} | Links: ${metadata.relationships}`;
+
+            document.getElementById('metadata').textContent = text;
+        }
+
+        // Handle search input
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('nodeSearch').addEventListener('input', function (e) {
+                const value = e.target.value;
+
+                // Check for node selection
+                const nodeMatch = value.match(/\[(\d+)\]/);
+                if (nodeMatch) {
+                    const id = parseInt(nodeMatch[1]);
+                    if (nodes.find(n => n.id === id)) {
+                        selectNode(id);
+                        return;
+                    }
+                }
+
+                // Check for marriage selection
+                const marriageMatch = value.match(/Marriage (M\d+):/);
+                if (marriageMatch) {
+                    const marriageId = marriageMatch[1];
+                    if (relationships.find(r => r.id === marriageId)) {
+                        selectMarriage(marriageId);
+                    }
+                }
+            });
+        });
+
+        function executeAction(action) {
+            if (action === 'delete') {
+                if (selectedMarriageId) {
+                    // Delete marriage
+                    deleteMarriage(selectedMarriageId);
+                    selectedMarriageId = null;
+                    document.getElementById('nodeSearch').value = '';
+                    updateUI();
+                    return;
+                } else if (selectedNodeId) {
+                    if (selectedNodeId === 1) {
+                        alert('Cannot delete root node');
+                        return;
+                    }
+                    deleteNode(selectedNodeId);
+                    selectedNodeId = null;
+                    document.getElementById('nodeSearch').value = '';
+                    updateUI();
+                    return;
+                } else {
+                    alert('Please select a node or marriage to delete');
+                    return;
+                }
+            }
+
+            if (action === 'add-child' && selectedMarriageId) {
+                // Adding child to a marriage
+                const newName = document.getElementById('newNodeName').value;
+                if (!newName) {
+                    alert('Please enter a name for the new child');
+                    return;
+                }
+
+                const marriage = relationships.find(r => r.id === selectedMarriageId);
+                if (!marriage) return;
+
+                const newNode = {
+                    id: nextId++,
+                    name: newName,
+                    attributes: {}
+                };
+                nodes.push(newNode);
+
+                // Add child linked to both parents via marriage
+                relationships.push({
+                    type: 'parent-child',
+                    marriageId: marriage.id,
+                    parent: marriage.person1,
+                    child: newNode.id
+                });
+                relationships.push({
+                    type: 'parent-child',
+                    marriageId: marriage.id,
+                    parent: marriage.person2,
+                    child: newNode.id
+                });
+
+                // Auto-expand to show new child
+                expandedNodes.add(marriage.person1);
+                expandedNodes.add(marriage.person2);
+                expandedMarriages.add(marriage.id);
+
+                document.getElementById('newNodeName').value = '';
+                updateUI();
+                return;
+            }
+
+            if (!selectedNodeId) {
+                alert('Please select a node first');
+                return;
+            }
+
+            const selectedNode = nodes.find(n => n.id === selectedNodeId);
+            if (!selectedNode) return;
+
+            const newName = document.getElementById('newNodeName').value;
+            if (!newName) {
+                alert('Please enter a name for the new node');
+                return;
+            }
+
+            const newNode = {
+                id: nextId++,
+                name: newName,
+                attributes: {}
+            };
+            nodes.push(newNode);
+
+            switch (action) {
+                case 'add-spouse':
+                    const marriageId = `M${nextMarriageId++}`;
+                    relationships.push({
+                        id: marriageId,
+                        type: 'marriage',
+                        person1: selectedNodeId,
+                        person2: newNode.id
+                    });
+                    expandedNodes.add(selectedNodeId);
+                    break;
+                case 'add-child':
+                    // Adding child without marriage (single parent)
+                    relationships.push({
+                        type: 'parent-child',
+                        parent: selectedNodeId,
+                        child: newNode.id
+                    });
+                    expandedNodes.add(selectedNodeId);
+                    break;
+            }
+
+            document.getElementById('newNodeName').value = '';
+            updateUI();
+        }
+
+        function deleteMarriage(marriageId) {
+            // Find the marriage
+            const marriageIndex = relationships.findIndex(r => r.id === marriageId && r.type === 'marriage');
+            if (marriageIndex === -1) return;
+
+            // Convert children from marriage to direct children of person1
+            const marriage = relationships[marriageIndex];
+            const marriageChildren = relationships.filter(r =>
+                r.type === 'parent-child' && r.marriageId === marriageId
+            );
+
+            // Remove marriageId from children relationships (they become direct children)
+            marriageChildren.forEach(rel => {
+                delete rel.marriageId;
+            });
+
+            // Remove the marriage relationship
+            relationships.splice(marriageIndex, 1);
+
+            // Remove from expanded marriages
+            expandedMarriages.delete(marriageId);
+        }
+
+        function deleteNode(nodeId) {
+            // Get all children to delete recursively
+            const toDelete = new Set([nodeId]);
+            let changed = true;
+
+            while (changed) {
+                changed = false;
+                relationships.forEach(r => {
+                    if (r.type === 'parent-child' && toDelete.has(r.parent) && !toDelete.has(r.child)) {
+                        toDelete.add(r.child);
+                        changed = true;
+                    }
+                });
+            }
+
+            // Remove nodes
+            nodes = nodes.filter(n => !toDelete.has(n.id));
+
+            // Remove relationships
+            relationships = relationships.filter(r => {
+                if (r.type === 'marriage') {
+                    return !toDelete.has(r.person1) && !toDelete.has(r.person2);
+                } else if (r.type === 'parent-child') {
+                    return !toDelete.has(r.parent) && !toDelete.has(r.child);
+                }
+                return true;
+            });
+
+            // Remove from expanded set
+            toDelete.forEach(id => expandedNodes.delete(id));
+
+            updateUI();
+        }
+
+        function addAttribute() {
+            if (!selectedNodeId || selectedMarriageId) {
+                alert('Please select a person node (not a marriage) to add attributes');
+                return;
+            }
+
+            const key = document.getElementById('attrKey').value;
+            const value = document.getElementById('attrValue').value;
+
+            if (!key || !value) {
+                alert('Please enter both key and value');
+                return;
+            }
+
+            const node = nodes.find(n => n.id === selectedNodeId);
+            if (node) {
+                node.attributes[key] = value;
+                document.getElementById('attrKey').value = '';
+                document.getElementById('attrValue').value = '';
+                updateUI();
+            }
+        }
+
+        function copyJSON() {
+            const textarea = document.getElementById('jsonOutput');
+            textarea.select();
+            document.execCommand('copy');
+            alert('JSON copied to clipboard');
+        }
+
+        function openLoadModal() {
+            document.getElementById('loadModal').style.display = 'flex';
+            document.getElementById('jsonInput').value = '';
+            document.getElementById('loadError').textContent = '';
+        }
+
+        function closeLoadModal() {
+            document.getElementById('loadModal').style.display = 'none';
+        }
+
+        function loadFromJSON() {
+            const jsonInput = document.getElementById('jsonInput').value.trim();
+            const errorDiv = document.getElementById('loadError');
+
+            if (!jsonInput) {
+                errorDiv.textContent = 'Please paste JSON data';
+                return;
+            }
+
+            try {
+                const data = JSON.parse(jsonInput);
+
+                // Validate structure
+                if (!data.nodes || !Array.isArray(data.nodes)) {
+                    throw new Error('Invalid JSON: missing or invalid nodes array');
+                }
+                if (!data.relationships || !Array.isArray(data.relationships)) {
+                    throw new Error('Invalid JSON: missing or invalid relationships array');
+                }
+
+                // Load the data
+                nodes = data.nodes;
+                relationships = data.relationships;
+
+                // Update nextId to be higher than any existing ID
+                nextId = Math.max(...nodes.map(n => n.id), 0) + 1;
+
+                // Update nextMarriageId based on existing marriages
+                const marriageIds = relationships
+                    .filter(r => r.type === 'marriage' && r.id)
+                    .map(r => parseInt(r.id.replace('M', '')))
+                    .filter(id => !isNaN(id));
+                nextMarriageId = Math.max(...marriageIds, 0) + 1;
+
+                // Reset selections and expanded states
+                selectedNodeId = null;
+                selectedMarriageId = null;
+                expandedNodes = new Set([1]); // Start with root expanded
+                expandedMarriages = new Set();
+
+                // Clear search
+                document.getElementById('nodeSearch').value = '';
+
+                // Update UI
+                updateUI();
+
+                // Close modal
+                closeLoadModal();
+
+                alert('Tree loaded successfully!');
+
+            } catch (error) {
+                errorDiv.textContent = 'Error loading JSON: ' + error.message;
+            }
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+
+</html>
